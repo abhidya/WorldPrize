@@ -1,22 +1,34 @@
 'use client';
 
+import type {
+  CampaignSnapshot,
+  EntryResponse,
+  SimulationResponse,
+} from '@/lib/worldprize/demo';
 import {
-  DEFAULT_WORLD_ACTION_FREE_ENTRY,
-  DEFAULT_WORLD_APP_ID,
-  DEFAULT_WORLD_RP_ID,
-  normalizeWorldPrizeMode,
-  type WorldPrizeMode,
-  type WorldRpContext,
-  type WorldRpSignature,
-} from '@/lib/worldprize/config';
-import type { CampaignSnapshot, EntryResponse, SimulationResponse } from '@worldprize/core';
-import { IDKitRequestWidget, orbLegacy } from '@worldcoin/idkit';
-import { MiniKit } from '@worldcoin/minikit-js';
+  IDKitRequestWidget,
+  orbLegacy,
+  type IDKitResult,
+  type RpContext,
+} from '@worldcoin/idkit';
+import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+
+type WorldConfig = {
+  mode: 'mock' | 'real';
+  appId: string;
+  rpId: string;
+  actionFreeEntry: string;
+  signingKeyConfigured: boolean;
+};
+
+type WorldPrizeDemoProps = {
+  worldConfig: WorldConfig;
+};
 
 type EntryFormState = {
   productCode: string;
-  humanLabel: string;
+  humanId: string;
 };
 
 type EntryPayload =
@@ -29,15 +41,9 @@ type EntryPayload =
       humanLabel: string;
     };
 
-type WorldSession = {
-  humanLabel: string;
-  dayKey: string;
-  rpContext: WorldRpContext;
-};
-
 const initialFormState: EntryFormState = {
   productCode: 'SNACK-123',
-  humanLabel: 'Alice',
+  humanId: 'Alice',
 };
 
 function statusTone(status: EntryResponse['result']['status']) {
@@ -116,36 +122,28 @@ function Stat({
   );
 }
 
-export function WorldPrizeDemo() {
+export function WorldPrizeDemo({ worldConfig }: WorldPrizeDemoProps) {
   const [snapshot, setSnapshot] = useState<CampaignSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [result, setResult] = useState<EntryResponse['result'] | null>(null);
   const [formState, setFormState] = useState<EntryFormState>(initialFormState);
-  const [worldPrizeMode, setWorldPrizeMode] = useState<WorldPrizeMode>(
-    normalizeWorldPrizeMode(process.env.NEXT_PUBLIC_WORLDPRIZE_MODE),
-  );
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [worldSession, setWorldSession] = useState<WorldSession | null>(null);
-  const [worldWidgetOpen, setWorldWidgetOpen] = useState(false);
-
-  useEffect(() => {
-    const installed = MiniKit.isInstalled();
-    setIsInstalled(installed);
-    if (process.env.NEXT_PUBLIC_WORLDPRIZE_MODE == null && installed) {
-      setWorldPrizeMode('real');
-    }
-  }, []);
+  const [worldOpen, setWorldOpen] = useState(false);
+  const [worldRpContext, setWorldRpContext] = useState<RpContext | null>(null);
+  const [worldIdkitResult, setWorldIdkitResult] =
+    useState<IDKitResult | null>(null);
+  const [worldVerificationResult, setWorldVerificationResult] = useState<{
+    verified: true;
+    nullifier: string;
+  } | null>(null);
+  const { isInstalled } = useMiniKit();
+  const isRealMode = worldConfig.mode === 'real';
 
   const refreshSnapshot = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/stats', {
-        cache: 'no-store',
-      });
-      if (!response.ok) {
-        throw new Error('Failed to load campaign snapshot');
-      }
+      const response = await fetch('/api/admin/stats', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Failed to load campaign snapshot');
       const data = (await response.json()) as CampaignSnapshot;
       setSnapshot(data);
     } finally {
@@ -168,26 +166,20 @@ export function WorldPrizeDemo() {
     setBusyAction('free_world_id');
     setResult(null);
     try {
-      const dayKey = new Date().toISOString().slice(0, 10);
-      const response = await fetch('/api/world/sign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: DEFAULT_WORLD_ACTION_FREE_ENTRY }),
-      });
-      if (!response.ok) {
-        throw new Error('World sign request failed');
+      if (!worldRpContext) {
+        const response = await fetch('/api/world/sign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: worldConfig.actionFreeEntry }),
+        });
+        if (!response.ok) throw new Error('World sign request failed');
+        const data = (await response.json()) as RpContext;
+        setWorldRpContext(data);
       }
 
-      const signature = (await response.json()) as WorldRpSignature;
-      setWorldSession({
-        humanLabel: formState.humanLabel,
-        dayKey,
-        rpContext: {
-          rp_id: process.env.NEXT_PUBLIC_WORLD_RP_ID ?? DEFAULT_WORLD_RP_ID,
-          ...signature,
-        },
-      });
-      setWorldWidgetOpen(true);
+      setWorldVerificationResult(null);
+      setWorldIdkitResult(null);
+      setWorldOpen(true);
     } catch {
       setResult({
         method: 'free_world_id',
@@ -200,42 +192,75 @@ export function WorldPrizeDemo() {
     } finally {
       setBusyAction(null);
     }
-  }, [formState.humanLabel]);
+  }, [worldConfig.actionFreeEntry, worldRpContext]);
 
   const handleWorldVerify = useCallback(
-    async (idkitResult: unknown) => {
-      if (!worldSession) {
-        throw new Error('World session missing');
-      }
+    async (idkitResult: IDKitResult) => {
+      setWorldIdkitResult(idkitResult);
+      const response = await fetch('/api/world/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idkitResult }),
+      });
+      if (!response.ok) throw new Error('Backend verification failed');
+      const verified = (await response.json()) as {
+        verified: true;
+        nullifier: string;
+      };
+      setWorldVerificationResult(verified);
+    },
+    [],
+  );
 
+  const submitRealWorldEntry = useCallback(async () => {
+    if (!worldIdkitResult) {
+      throw new Error('Missing IDKit result');
+    }
+
+    setBusyAction('free_world_id');
+    setResult(null);
+    try {
+      const dayKey = new Date().toISOString().slice(0, 10);
       const response = await fetch('/api/enter', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           method: 'free_world_id',
-          humanLabel: worldSession.humanLabel,
-          dayKey: worldSession.dayKey,
-          idkitResult,
+          humanLabel: formState.humanId,
           source: isInstalled ? 'world-app' : 'browser',
+          dayKey,
+          idkitResult: worldIdkitResult,
+          verificationResult: worldVerificationResult,
         }),
       });
-
+      if (!response.ok) throw new Error('Entry failed');
       const data = (await response.json()) as EntryResponse;
       setResult(data.result);
+      setWorldOpen(false);
       await refreshSnapshot();
-
-      if (!response.ok || data.result.status === 'INVALID_PROOF') {
-        throw new Error('World ID verification failed');
-      }
-    },
-    [isInstalled, refreshSnapshot, worldSession],
-  );
+    } catch {
+      setResult({
+        method: 'free_world_id',
+        status: 'INVALID_PROOF',
+        headline: 'Request failed',
+        detail: 'The real World ID flow could not be completed.',
+        actorMasked: 'guest',
+        inputMasked: 'n/a',
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }, [
+    formState.humanId,
+    isInstalled,
+    refreshSnapshot,
+    worldIdkitResult,
+    worldVerificationResult,
+  ]);
 
   const submitEntry = useCallback(
     async (payload: EntryPayload) => {
-      if (payload.method === 'free_world_id' && worldPrizeMode === 'real') {
+      if (payload.method === 'free_world_id' && isRealMode) {
         await openWorldFlow();
         return;
       }
@@ -282,7 +307,7 @@ export function WorldPrizeDemo() {
         setBusyAction(null);
       }
     },
-    [openWorldFlow, refreshSnapshot, worldPrizeMode],
+    [isRealMode, openWorldFlow, refreshSnapshot],
   );
 
   const runSimulation = useCallback(
@@ -294,9 +319,7 @@ export function WorldPrizeDemo() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ scenario }),
         });
-        if (!response.ok) {
-          throw new Error('Simulation failed');
-        }
+        if (!response.ok) throw new Error('Simulation failed');
         const data = (await response.json()) as SimulationResponse;
         await refreshSnapshot();
         if (data.results.length > 0) {
@@ -312,64 +335,31 @@ export function WorldPrizeDemo() {
   const resetDemo = useCallback(async () => {
     setBusyAction('reset');
     try {
-      const response = await fetch('/api/admin/reset', {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        throw new Error('Reset failed');
-      }
+      const response = await fetch('/api/admin/reset', { method: 'POST' });
+      if (!response.ok) throw new Error('Reset failed');
       const data = (await response.json()) as CampaignSnapshot;
       setSnapshot(data);
       setResult(null);
       setFormState(initialFormState);
-      setWorldSession(null);
-      setWorldWidgetOpen(false);
+      setWorldRpContext(null);
+      setWorldIdkitResult(null);
+      setWorldVerificationResult(null);
+      setWorldOpen(false);
     } finally {
       setBusyAction(null);
     }
   }, []);
 
   const recentEvents = snapshot?.stats.recentEvents ?? [];
-  const worldAppLabel = isInstalled ? 'World App detected' : 'Browser flow';
-  const modeLabel =
-    worldPrizeMode === 'real' ? 'Real World ID mode' : 'Mock mode active';
+  const worldAppLabel = isRealMode
+    ? isInstalled
+      ? 'World App detected'
+      : 'World App flow available'
+    : 'Mock mode active';
 
   return (
     <div className="min-h-dvh bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.22),_transparent_32%),linear-gradient(180deg,#07111f_0%,#04070c_100%)] px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        {worldPrizeMode === 'real' && worldSession ? (
-          <IDKitRequestWidget
-            open={worldWidgetOpen}
-            onOpenChange={setWorldWidgetOpen}
-            app_id={process.env.NEXT_PUBLIC_WORLD_APP_ID ?? DEFAULT_WORLD_APP_ID}
-            action={DEFAULT_WORLD_ACTION_FREE_ENTRY}
-            rp_context={worldSession.rpContext}
-            allow_legacy_proofs={true}
-            environment="production"
-            preset={orbLegacy({
-              signal: worldSession.humanLabel,
-            })}
-            handleVerify={handleWorldVerify}
-            onSuccess={() => {
-              setWorldWidgetOpen(false);
-              setWorldSession(null);
-            }}
-            onError={(errorCode) => {
-              setWorldWidgetOpen(false);
-              setWorldSession(null);
-              setBusyAction(null);
-              setResult({
-                method: 'free_world_id',
-                status: 'INVALID_PROOF',
-                headline: 'World ID request failed',
-                detail: `IDKit returned ${errorCode}.`,
-                actorMasked: 'guest',
-                inputMasked: 'n/a',
-              });
-            }}
-          />
-        ) : null}
-
         <header className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-slate-950/40 backdrop-blur">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
@@ -384,13 +374,8 @@ export function WorldPrizeDemo() {
                 World ID proof in real mode. Mock mode keeps the interview demo
                 quick and local.
               </p>
-              <div className="mt-4 inline-flex flex-wrap gap-2">
-                <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100">
-                  {modeLabel}
-                </span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-100">
-                  {worldAppLabel}
-                </span>
+              <div className="mt-4 inline-flex rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100">
+                {worldAppLabel}
               </div>
             </div>
             <div className="flex gap-3">
@@ -477,18 +462,18 @@ export function WorldPrizeDemo() {
                   No purchase? Free daily entry with World ID
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                  {worldPrizeMode === 'real'
+                  {isRealMode
                     ? 'Real mode signs RP requests on the server, opens IDKit, verifies the proof server-side, then stores the nullifier.'
                     : 'Mock mode keeps the interview demo fast: the free path uses demo humans outside World App.'}
                 </p>
                 <label className="mt-4 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
                   Human label
                   <input
-                    value={formState.humanLabel}
+                    value={formState.humanId}
                     onChange={(event) =>
                       setFormState((current) => ({
                         ...current,
-                        humanLabel: event.target.value,
+                        humanId: event.target.value,
                       }))
                     }
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-300/50"
@@ -496,29 +481,61 @@ export function WorldPrizeDemo() {
                   />
                 </label>
 
-                {worldPrizeMode === 'real' ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void submitEntry({
-                        method: 'free_world_id',
-                        humanLabel: formState.humanLabel,
-                      })
-                    }
-                    disabled={busyAction === 'free_world_id'}
-                    className="mt-4 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {busyAction === 'free_world_id'
-                      ? 'Opening IDKit…'
-                      : 'Open World ID request'}
-                  </button>
+                {isRealMode ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void openWorldFlow()}
+                      disabled={busyAction === 'free_world_id'}
+                      className="mt-4 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {busyAction === 'free_world_id'
+                        ? 'Opening IDKit…'
+                        : 'Open World ID request'}
+                    </button>
+
+                    {worldRpContext ? (
+                      <IDKitRequestWidget
+                        open={worldOpen}
+                        onOpenChange={setWorldOpen}
+                        app_id={worldConfig.appId as `app_${string}`}
+                        action={worldConfig.actionFreeEntry}
+                        rp_context={worldRpContext}
+                        allow_legacy_proofs={true}
+                        environment={
+                          process.env.NODE_ENV === 'production'
+                            ? 'production'
+                            : 'staging'
+                        }
+                        preset={orbLegacy({
+                          signal: worldConfig.actionFreeEntry,
+                        })}
+                        handleVerify={handleWorldVerify}
+                        onSuccess={() => {
+                          void submitRealWorldEntry();
+                        }}
+                        onError={(errorCode) => {
+                          setWorldOpen(false);
+                          setBusyAction(null);
+                          setResult({
+                            method: 'free_world_id',
+                            status: 'INVALID_PROOF',
+                            headline: 'World ID request failed',
+                            detail: `IDKit returned ${errorCode}.`,
+                            actorMasked: 'guest',
+                            inputMasked: 'n/a',
+                          });
+                        }}
+                      />
+                    ) : null}
+                  </>
                 ) : (
                   <button
                     type="button"
                     onClick={() =>
                       void submitEntry({
                         method: 'free_world_id',
-                        humanLabel: formState.humanLabel,
+                        humanLabel: formState.humanId,
                       })
                     }
                     disabled={busyAction === 'free_world_id'}
@@ -680,7 +697,8 @@ export function WorldPrizeDemo() {
                 </span>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                {snapshot && Object.keys(snapshot.stats.inventory).length > 0 ? (
+                {snapshot &&
+                Object.keys(snapshot.stats.inventory).length > 0 ? (
                   Object.entries(snapshot.stats.inventory).map(
                     ([prize, count]) => (
                       <span
@@ -771,8 +789,8 @@ export function WorldPrizeDemo() {
         </section>
 
         <footer className="pb-6 text-center text-xs uppercase tracking-[0.25em] text-slate-500">
-          WorldPrize demo • {modeLabel.toLowerCase()} • server-backed state for
-          the current process only
+          WorldPrize demo • {worldConfig.mode} World ID mode • server-backed
+          state for the current process only
         </footer>
       </div>
     </div>
