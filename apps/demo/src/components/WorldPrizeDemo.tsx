@@ -6,11 +6,29 @@ import type {
   SimulationResponse,
 } from '@/lib/worldprize/demo';
 import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
+import {
+  IDKitRequestWidget,
+  orbLegacy,
+  type IDKitResult,
+  type RpContext,
+} from '@worldcoin/idkit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type EntryFormState = {
   productCode: string;
   humanId: string;
+};
+
+type WorldConfig = {
+  mode: 'mock' | 'real';
+  appId: string;
+  rpId: string;
+  actionFreeEntry: string;
+  signingKeyConfigured: boolean;
+};
+
+type WorldPrizeDemoProps = {
+  worldConfig: WorldConfig;
 };
 
 type EntryPayload =
@@ -104,13 +122,22 @@ function Stat({
   );
 }
 
-export function WorldPrizeDemo() {
+export function WorldPrizeDemo({ worldConfig }: WorldPrizeDemoProps) {
   const [snapshot, setSnapshot] = useState<CampaignSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [result, setResult] = useState<EntryResponse['result'] | null>(null);
   const [formState, setFormState] = useState<EntryFormState>(initialFormState);
+  const [worldOpen, setWorldOpen] = useState(false);
+  const [worldRpContext, setWorldRpContext] = useState<RpContext | null>(null);
+  const [worldIdkitResult, setWorldIdkitResult] =
+    useState<IDKitResult | null>(null);
+  const [worldVerificationResult, setWorldVerificationResult] = useState<{
+    verified: true;
+    nullifier: string;
+  } | null>(null);
   const { isInstalled } = useMiniKit();
+  const isRealMode = worldConfig.mode === 'real';
 
   const refreshSnapshot = useCallback(async () => {
     setLoading(true);
@@ -139,59 +166,130 @@ export function WorldPrizeDemo() {
     [result?.headline],
   );
 
+  const openWorldFlow = useCallback(async () => {
+    setBusyAction('free_world_id');
+    setResult(null);
+    try {
+      if (!worldRpContext) {
+        const response = await fetch('/api/world/sign', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ action: worldConfig.actionFreeEntry }),
+        });
+
+        if (!response.ok) {
+          throw new Error('World sign request failed');
+        }
+
+        const data = (await response.json()) as RpContext;
+        setWorldRpContext(data);
+      }
+
+      setWorldVerificationResult(null);
+      setWorldIdkitResult(null);
+      setWorldOpen(true);
+    } finally {
+      setBusyAction(null);
+    }
+  }, [worldConfig.actionFreeEntry, worldRpContext]);
+
+  const handleWorldVerify = useCallback(
+    async (idkitResult: IDKitResult) => {
+      setWorldIdkitResult(idkitResult);
+      const response = await fetch('/api/world/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idkitResult }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Backend verification failed');
+      }
+
+      const verified = (await response.json()) as {
+        verified: true;
+        nullifier: string;
+      };
+      setWorldVerificationResult(verified);
+    },
+    [],
+  );
+
+  const submitRealWorldEntry = useCallback(async () => {
+    if (!worldIdkitResult) {
+      throw new Error('Missing IDKit result');
+    }
+
+    setBusyAction('free_world_id');
+    setResult(null);
+    try {
+      const dayKey = new Date().toISOString().slice(0, 10);
+      const response = await fetch('/api/enter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          method: 'free_world_id',
+          humanLabel: formState.humanId,
+          source: isInstalled ? 'world-app' : 'browser',
+          dayKey,
+          idkitResult: worldIdkitResult,
+          verificationResult: worldVerificationResult,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Entry failed');
+      }
+
+      const data = (await response.json()) as EntryResponse;
+      setResult(data.result);
+      setWorldOpen(false);
+      await refreshSnapshot();
+    } catch {
+      setResult({
+        method: 'free_world_id',
+        status: 'INVALID_PROOF',
+        headline: 'Request failed',
+        detail: 'The real World ID flow could not be completed.',
+        actorMasked: 'guest',
+        inputMasked: 'n/a',
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }, [
+    formState.humanId,
+    isInstalled,
+    refreshSnapshot,
+    worldIdkitResult,
+    worldVerificationResult,
+  ]);
+
   const submitEntry = useCallback(
     async (payload: EntryPayload) => {
+      if (payload.method === 'free_world_id' && isRealMode) {
+        await openWorldFlow();
+        return;
+      }
+
       setBusyAction(payload.method);
       setResult(null);
       try {
         const body =
           payload.method === 'product_code'
             ? payload
-            : await (async () => {
-                const dayKey = new Date().toISOString().slice(0, 10);
-                if (isInstalled) {
-                  const signResponse = await fetch('/api/world/sign', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      humanLabel: payload.humanLabel,
-                      dayKey,
-                    }),
-                  });
-                  if (!signResponse.ok) {
-                    throw new Error('World sign request failed');
-                  }
-                  const signData = (await signResponse.json()) as {
-                    proof: Record<string, unknown>;
-                  };
-                  const verifyResponse = await fetch('/api/world/verify', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ proof: signData.proof }),
-                  });
-                  if (!verifyResponse.ok) {
-                    throw new Error('World verify request failed');
-                  }
-                  return {
-                    method: 'free_world_id' as const,
-                    humanLabel: payload.humanLabel,
-                    dayKey,
-                    proof: signData.proof,
-                    source: 'world-app',
-                  };
-                }
-
-                return {
-                  method: 'free_world_id' as const,
-                  humanLabel: payload.humanLabel,
-                  dayKey,
-                  source: 'mock',
-                };
-              })();
+            : {
+                method: 'free_world_id' as const,
+                humanLabel: payload.humanLabel,
+                dayKey: new Date().toISOString().slice(0, 10),
+                source: 'mock',
+              };
 
         const response = await fetch('/api/enter', {
           method: 'POST',
@@ -224,7 +322,7 @@ export function WorldPrizeDemo() {
         setBusyAction(null);
       }
     },
-    [refreshSnapshot, isInstalled],
+    [isRealMode, openWorldFlow, refreshSnapshot],
   );
 
   const runSimulation = useCallback(
@@ -272,7 +370,11 @@ export function WorldPrizeDemo() {
   }, []);
 
   const recentEvents = snapshot?.stats.recentEvents ?? [];
-  const worldAppLabel = isInstalled ? 'World App detected' : 'Mock mode active';
+  const worldAppLabel = isRealMode
+    ? isInstalled
+      ? 'World App detected'
+      : 'World App flow available'
+    : 'Mock mode active';
 
   return (
     <div className="min-h-dvh bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.22),_transparent_32%),linear-gradient(180deg,#07111f_0%,#04070c_100%)] px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
@@ -378,25 +480,17 @@ export function WorldPrizeDemo() {
                 </button>
               </form>
 
-                <form
-                  className="rounded-3xl border border-white/10 bg-slate-950/50 p-5"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void submitEntry({
-                      method: 'free_world_id',
-                      humanLabel: formState.humanId,
-                    });
-                  }}
-                >
+              <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-5">
                 <p className="text-lg font-semibold text-white">
                   No purchase? Free daily entry with World ID
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                  The mock proof stands in for a real backend-verified World ID
-                  action. Only one verified human can enter per day.
+                  {isRealMode
+                    ? 'Real mode signs RP requests on the server, opens IDKit, verifies the proof server-side, then stores the nullifier.'
+                    : 'Mock mode keeps the interview demo fast: the free path uses demo humans outside World App.'}
                 </p>
                 <label className="mt-4 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                  Human ID
+                  Human label
                   <input
                     value={formState.humanId}
                     onChange={(event) =>
@@ -409,16 +503,73 @@ export function WorldPrizeDemo() {
                     placeholder="Alice"
                   />
                 </label>
-                <button
-                  type="submit"
-                  disabled={busyAction === 'free_world_id'}
-                  className="mt-4 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {busyAction === 'free_world_id'
-                    ? 'Verifying human…'
-                    : 'Verify & enter'}
-                </button>
-              </form>
+
+                {isRealMode ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void openWorldFlow()}
+                      disabled={busyAction === 'free_world_id'}
+                      className="mt-4 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {busyAction === 'free_world_id'
+                        ? 'Opening IDKit…'
+                        : 'Open World ID request'}
+                    </button>
+
+                    {worldRpContext ? (
+                      <IDKitRequestWidget
+                        open={worldOpen}
+                        onOpenChange={setWorldOpen}
+                        app_id={worldConfig.appId}
+                        action={worldConfig.actionFreeEntry}
+                        rp_context={worldRpContext}
+                        allow_legacy_proofs={true}
+                        environment={
+                          process.env.NODE_ENV === 'production'
+                            ? 'production'
+                            : 'staging'
+                        }
+                        preset={orbLegacy({
+                          signal: worldConfig.actionFreeEntry,
+                        })}
+                        handleVerify={handleWorldVerify}
+                        onSuccess={() => {
+                          void submitRealWorldEntry();
+                        }}
+                        onError={(errorCode) => {
+                          setWorldOpen(false);
+                          setBusyAction(null);
+                          setResult({
+                            method: 'free_world_id',
+                            status: 'INVALID_PROOF',
+                            headline: 'World ID request failed',
+                            detail: `IDKit returned ${errorCode}.`,
+                            actorMasked: 'guest',
+                            inputMasked: 'n/a',
+                          });
+                        }}
+                      />
+                    ) : null}
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void submitEntry({
+                        method: 'free_world_id',
+                        humanLabel: formState.humanId,
+                      })
+                    }
+                    disabled={busyAction === 'free_world_id'}
+                    className="mt-4 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {busyAction === 'free_world_id'
+                      ? 'Verifying human…'
+                      : 'Verify & enter'}
+                  </button>
+                )}
+              </div>
             </div>
           </Card>
 

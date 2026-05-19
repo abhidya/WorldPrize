@@ -1,17 +1,28 @@
-import { verifyWorldProof } from '@/lib/worldprize/world';
-import type { VerificationProof } from '@worldprize/core';
+import { verifyWorldResult } from '@/lib/worldprize/world';
+import type { IDKitResult } from '@worldcoin/idkit';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as
-    | { proof?: VerificationProof }
+    | { idkitResult?: IDKitResult }
     | null;
 
-  if (!body?.proof) {
-    return Response.json({ ok: false, reason: 'MISSING_PROOF' }, { status: 400 });
+  if (!body?.idkitResult) {
+    return Response.json({ verified: false, reason: 'MISSING_PROOF' }, { status: 400 });
   }
 
-  const result = await verifyWorldProof(body.proof);
-  return Response.json(result, { status: result.ok ? 200 : 400 });
+  const result = await verifyWorldResult(body.idkitResult);
+  if (!result.ok) {
+    return Response.json(
+      { verified: false, reason: result.reason ?? 'INVALID_PROOF' },
+      { status: 400 },
+    );
+  }
+
+  return Response.json({
+    verified: true,
+    nullifier: result.nullifierHash,
+  });
 }
+

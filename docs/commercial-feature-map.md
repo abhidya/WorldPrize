@@ -6,6 +6,7 @@ WorldPrize intentionally models only the part of an instant-win promotion that b
 
 - product-code entries
 - free daily entry protection
+- mock and real deployment mode guidance
 - instant-win random odds
 - prize inventory
 - audit events
@@ -31,3 +32,7 @@ WorldPrize intentionally models only the part of an instant-win promotion that b
 
 The demo shows how World ID can reduce abuse on the legally required no-purchase path while leaving the purchase path intact.
 
+## Hosting split
+
+- GitHub Pages is mock-only and is useful for the interview demo.
+- Real World ID verification needs a deployed app with backend/serverless API routes on Vercel or Cloudflare.

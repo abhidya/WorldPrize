@@ -1,7 +1,4 @@
-import {
-  enterDemoEntry,
-  type DemoEntryPayload,
-} from '@/lib/worldprize/demo';
+import { enterDemoEntry, type DemoEntryPayload } from '@/lib/worldprize/demo';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,5 +11,7 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Invalid entry payload' }, { status: 400 });
   }
 
-  return Response.json(enterDemoEntry(body));
+  const result = await enterDemoEntry(body);
+  return Response.json(result);
 }
+

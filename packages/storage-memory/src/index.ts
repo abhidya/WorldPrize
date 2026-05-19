@@ -273,7 +273,7 @@ export class MemoryStorage implements PromotionStorage {
         status: 'ALREADY_ENTERED',
         actorMasked,
         inputMasked,
-        nullifierMasked: maskValue(nullifierHash, 4, 4),
+        nullifierMasked: maskValue(nullifierHash, 2, 2),
         note: `Duplicate free-entry attempt blocked for ${dayKey}.`,
       });
       return this.makeResponse(state, {
@@ -298,7 +298,7 @@ export class MemoryStorage implements PromotionStorage {
         actorMasked,
         inputMasked,
         prize,
-        nullifierMasked: maskValue(nullifierHash, 4, 4),
+        nullifierMasked: maskValue(nullifierHash, 2, 2),
         note,
       });
       return this.makeResponse(state, {
@@ -323,7 +323,7 @@ export class MemoryStorage implements PromotionStorage {
       status,
       actorMasked,
       inputMasked,
-      nullifierMasked: maskValue(nullifierHash, 4, 4),
+      nullifierMasked: maskValue(nullifierHash, 2, 2),
       note,
     });
     return this.makeResponse(state, {

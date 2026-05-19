@@ -1,5 +1,7 @@
 import { WorldPrizeDemo } from '@/components/WorldPrizeDemo';
+import { getWorldConfig } from '@/lib/worldprize/world';
 
 export default function Home() {
-  return <WorldPrizeDemo />;
+  return <WorldPrizeDemo worldConfig={getWorldConfig()} />;
 }
+

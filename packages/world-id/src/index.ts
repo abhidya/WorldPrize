@@ -19,7 +19,6 @@ export class MockWorldIdVerificationProvider implements VerificationProvider {
     private readonly options: {
       appId: string;
       rpId: string;
-      signingKey?: string;
     },
   ) {}
 
@@ -43,41 +42,45 @@ export class MockWorldIdVerificationProvider implements VerificationProvider {
 export class WorldIdVerificationProvider implements VerificationProvider {
   constructor(
     private readonly options: {
-      appId: string;
       rpId: string;
-      signingKey: string;
+      verifyUrl?: string;
+      fetchImpl?: typeof fetch;
     },
   ) {}
 
   async verify(proof: VerificationProof): Promise<VerificationResult> {
-    if (!this.options.signingKey) {
-      return { ok: false, reason: 'SERVER_ERROR' };
-    }
-
-    if (!proof?.signature) {
+    if (!proof?.payload) {
       return { ok: false, reason: 'MISSING_PROOF' };
     }
 
-    const expectedSignature = serverHash([
-      this.options.signingKey,
-      this.options.appId,
-      this.options.rpId,
-      proof.action,
-      proof.dayKey,
-      proof.humanLabel.toLowerCase(),
-    ]);
+    const verifyUrl =
+      this.options.verifyUrl ??
+      `https://developer.world.org/api/v4/verify/${this.options.rpId}`;
+    const fetchImpl = this.options.fetchImpl ?? fetch;
 
-    if (expectedSignature !== proof.signature) {
+    const response = await fetchImpl(verifyUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(proof.payload),
+    });
+
+    if (!response.ok) {
       return { ok: false, reason: 'INVALID_PROOF' };
     }
 
-    const nullifierHash = serverHash([
-      this.options.appId,
-      this.options.rpId,
-      proof.action,
-      proof.dayKey,
-      proof.humanLabel.toLowerCase(),
-    ]);
+    const data = (await response.json()) as {
+      nullifier?: string;
+      results?: Array<{ nullifier?: string; success?: boolean }>;
+    };
+
+    const nullifierHash =
+      data.nullifier ?? data.results?.find((result) => result.success)?.nullifier;
+
+    if (!nullifierHash) {
+      return { ok: false, reason: 'SERVER_ERROR' };
+    }
 
     return { ok: true, nullifierHash };
   }

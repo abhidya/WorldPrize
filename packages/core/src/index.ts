@@ -57,6 +57,7 @@ export interface VerificationProof {
   humanLabel: string;
   signature?: string;
   mock?: boolean;
+  payload?: unknown;
 }
 
 export interface VerificationResult {

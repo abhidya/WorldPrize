@@ -1,6 +1,7 @@
 # dependencies
 node_modules/
 **/node_modules/
+.pnpm-store/
 
 # next.js / build output
 .next/
@@ -8,9 +9,12 @@ node_modules/
 out/
 dist/
 coverage/
+*.tsbuildinfo
+.vercel/
 
 # logs
 *.log
+pnpm-debug.log*
 
 # env files
 .env
@@ -23,6 +27,7 @@ coverage/
 .idea/
 .vscode/
 .omx/
+*.cache
 
 # legacy local app artifacts
 my-first-mini-app/.next/

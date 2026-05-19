@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@worldprize/core": "workspace:*"
+    "@worldprize/core": "workspace:*",
+    "@worldcoin/idkit": "^4.1.2"
   },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -15,10 +16,6 @@
     "build": "tsc --noEmit",
     "test": "vitest run",
     "lint": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@worldprize/core": "workspace:*",
-    "@worldcoin/idkit": "^4.1.2"
   },
   "devDependencies": {
     "typescript": "^5",

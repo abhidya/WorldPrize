@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "pnpm --filter @worldprize/demo dev",
     "build": "pnpm --filter @worldprize/demo build",
-    "test": "pnpm --filter @worldprize/core test",
+    "test": "./node_modules/.bin/vitest run packages/core/test/promotion.test.ts",
     "lint": "pnpm --filter @worldprize/demo lint"
   },
   "devDependencies": {
