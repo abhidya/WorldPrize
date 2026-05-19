@@ -8,7 +8,7 @@ import type {
 import Link from 'next/link';
 import {
   IDKitRequestWidget,
-  orbLegacy,
+  deviceLegacy,
   type IDKitResult,
   type RpContext,
 } from '@worldcoin/idkit';
@@ -607,15 +607,19 @@ export function WorldPrizeDemo({
                   <button
                     type="button"
                     onClick={() => void openWorldFlow()}
-                    disabled={busyAction === 'free_world_id' || !isInstalled}
+                    disabled={
+                      busyAction === 'free_world_id' ||
+                      !worldConfig.appId ||
+                      !worldConfig.rpId ||
+                      !worldConfig.actionFreeEntry ||
+                      !worldConfig.signingKeyConfigured
+                    }
                     className="wp-button wp-button-secondary"
                     style={{ marginTop: '1rem', width: '100%' }}
                   >
                     {busyAction === 'free_world_id'
                       ? 'Opening IDKit…'
-                      : isInstalled
-                        ? 'Verify with World ID'
-                        : 'Open in World App to verify with World ID'}
+                      : 'Verify with World ID'}
                   </button>
 
                   {worldRpContext ? (
@@ -626,14 +630,9 @@ export function WorldPrizeDemo({
                       action={worldConfig.actionFreeEntry}
                       rp_context={worldRpContext}
                       allow_legacy_proofs={true}
-                      environment={
-                        process.env.NODE_ENV === 'production'
-                          ? 'production'
-                          : 'staging'
-                      }
-                      preset={orbLegacy({
-                        signal: worldConfig.actionFreeEntry,
-                      })}
+                      environment="production"
+                      action_description="One free AMOE entry per verified human per campaign day"
+                      preset={deviceLegacy()}
                       handleVerify={handleWorldVerify}
                       onSuccess={() => {
                         void submitRealWorldEntry();
