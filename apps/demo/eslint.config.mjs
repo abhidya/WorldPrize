@@ -1,5 +1,4 @@
 import { FlatCompat } from '@eslint/eslintrc';
-import react from 'eslint-plugin-react';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -12,13 +11,6 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
-  {
-    settings: { react: { version: 'detect' } },
-    rules: {
-      ...react.configs.recommended.rules,
-      ...react.configs['jsx-runtime'].rules,
-    },
-  },
 ];
 
 export default eslintConfig;

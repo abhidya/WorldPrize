@@ -1,4 +1,5 @@
 'use client';
+
 import { MiniKitProvider } from '@worldcoin/minikit-js/minikit-provider';
 import type { ReactNode } from 'react';
 

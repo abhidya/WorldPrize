@@ -16,7 +16,7 @@ build/
 .turbo/
 .next-env.d.ts
 
-# Coverage / test output
+# Test / coverage
 coverage/
 **/coverage/
 *.tsbuildinfo
@@ -28,13 +28,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment files
+# Env
 .env
 .env.*
 !.env.example
 !**/.env.example
 
-# Local OS / editor files
+# OS / editor
 .DS_Store
 Thumbs.db
 .idea/
@@ -42,21 +42,17 @@ Thumbs.db
 *.swp
 *.swo
 
-# Cache / generated files
+# Local workflow artifacts
+.ai/
+.sisyphus/
+.omx/
+*.trace
+*.tmp
 *.cache
 .cache/
 .eslintcache
-.parcel-cache/
 
-# AI / local workflow artifacts
-.omx/
-.sisyphus/*
-.ai/mcp/
-run-continuation/
-*.trace
-*.tmp
-
-# Legacy / scratch app artifacts
+# Legacy scratch app artifacts
 my-first-mini-app/.next/
 my-first-mini-app/node_modules/
 my-first-mini-app/out/
