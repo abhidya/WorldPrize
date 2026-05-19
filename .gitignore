@@ -50,7 +50,7 @@ Thumbs.db
 
 # AI / local workflow artifacts
 .omx/
-.sisyphus/
+.sisyphus/*
 .ai/mcp/
 run-continuation/
 *.trace
