@@ -7,7 +7,7 @@ It is an interview demo and reference integration, not a full SaaS product and n
 ## Deployment modes
 
 - **Mock-first Vercel demo:** the current Vercel-ready demo uses deterministic mock humans and in-memory state so interviews are repeatable.
-- **Real mode:** a production integration requires server-side IDKit verification, backend RP signing, verification at the World verifier endpoint, and persistent nullifier storage.
+- **Real mode:** server-side IDKit verification, backend RP signing, verification at the World verifier endpoint, and persistent nullifier storage. Set `WORLDPRIZE_MODE=real` and `NEXT_PUBLIC_WORLDPRIZE_MODE=real` to activate.
 
 GitHub Pages is **mock-only**. It cannot run backend signing, verifier, or persistent storage required for real World ID verification.
 
@@ -67,7 +67,7 @@ Optional/future real mode:
 
 `WORLD_SIGNING_KEY` must never be exposed client-side.
 
-`WORLDPRIZE_MODE=mock` and `NEXT_PUBLIC_WORLDPRIZE_MODE=mock` keep the current Vercel demo mock-first with local mock humans and in-memory state. `WORLDPRIZE_MODE=real` is scaffolding only until server-side IDKit verification and persistent nullifier storage are configured.
+`WORLDPRIZE_MODE=mock` and `NEXT_PUBLIC_WORLDPRIZE_MODE=mock` keep the current Vercel demo mock-first with local mock humans and in-memory state. `WORLDPRIZE_MODE=real` activates the real World ID v4 verification flow: the backend signs RP context with `WORLD_SIGNING_KEY`, forwards the IDKit proof to the World verifier endpoint, and stores the returned nullifier to enforce one-verified-human-per-day.
 
 ## Demo behavior
 
@@ -87,7 +87,7 @@ Expected demo outcomes:
 
 ## Real World ID v4 flow
 
-Current Vercel demo is mock-first. Real World ID mode requires server-side IDKit verification and persistent storage before production use. In production, the flow is:
+When `WORLDPRIZE_MODE=real`, the free-entry path uses real World ID verification:
 
 1. The frontend requests a server-signed RP context from `/api/world/sign`.
 2. The app opens the World App / IDKit verification flow with:
@@ -96,10 +96,12 @@ Current Vercel demo is mock-first. Real World ID mode requires server-side IDKit
    - `action = worldprize-free-entry-demo`
    - `rp_context =` the server-signed context
 3. IDKit returns the verification result to the app.
-4. The app sends that result to `/api/world/verify` or directly to `/api/enter`.
-5. The backend forwards the payload to the World verifier endpoint, extracts the nullifier, and stores it in persistent campaign-day storage.
+4. The app sends that result to `/api/enter`.
+5. `/api/enter` forwards the IDKit payload to the World verifier endpoint (`POST https://developer.world.org/api/v4/verify/${WORLD_RP_ID}`).
+6. The backend extracts the verified nullifier and stores it as a campaign-day entry.
+7. Duplicate entries from the same nullifier on the same day are blocked.
 
-The key rule is that the client never fabricates proof data and never sees `WORLD_SIGNING_KEY`. GitHub Pages remains mock-only because it has no backend verification path.
+The client never fabricates proof data and never sees `WORLD_SIGNING_KEY`. Outside World App, the free-entry button is disabled with a message to open in World App. The product-code path remains usable regardless of mode. GitHub Pages remains mock-only because it has no backend verification path.
 
 ## Important docs
 

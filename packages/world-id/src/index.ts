@@ -53,20 +53,9 @@ export class WorldIdVerificationProvider implements VerificationProvider {
       return { ok: false, reason: 'MISSING_PROOF' };
     }
 
-    if (
-      typeof proof.payload === 'object' &&
-      proof.payload !== null &&
-      'verified' in proof.payload &&
-      (proof.payload as { verified?: unknown }).verified === true &&
-      'nullifier' in proof.payload &&
-      typeof (proof.payload as { nullifier?: unknown }).nullifier === 'string'
-    ) {
-      return {
-        ok: true,
-        nullifierHash: (proof.payload as { nullifier: string }).nullifier,
-      };
-    }
-
+    // Always forward the proof payload to the World verifier endpoint.
+    // Never trust client-side claims like { verified: true } — the verifier
+    // is the only authority that can confirm a proof is valid.
     const verifyUrl =
       this.options.verifyUrl ??
       `https://developer.world.org/api/v4/verify/${this.options.rpId}`;

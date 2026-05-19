@@ -24,10 +24,12 @@ GitHub Pages should remain mock-only. The real flow needs a backend or serverles
 
 ## Design rules
 
-- Do not trust client-only verification.
+- Do not trust client-only verification. The `WorldIdVerificationProvider` always forwards the proof payload to the World verifier endpoint — it never accepts a client-side `{ verified: true }` claim.
 - Verify on the server or serverless backend.
 - Store the nullifier server-side.
 - Never show the full nullifier hash publicly.
+- `/api/enter` in real mode verifies the IDKit proof before allowing a free-entry campaign entry.
+- Outside World App, the free-entry button is disabled — the product-code path remains usable.
 
 ## Helper shape
 
@@ -63,3 +65,11 @@ Do not mutate, remap, or fabricate the proof payload in real mode. The client sh
 
 - **Demo mode:** local mock humans and in-memory state
 - **Real mode:** server-side verification, signing, and nullifier persistence
+
+## Production storage TODO
+
+In-memory storage resets on redeployment. For production:
+
+- Use persistent storage (Postgres, Redis, or equivalent) for `freeNullifiers` and `usedCodes`
+- Add TTL or cleanup for stale nullifiers beyond the campaign window
+- Consider rate-limiting on `/api/world/sign` and `/api/enter` to prevent abuse

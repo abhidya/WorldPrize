@@ -371,8 +371,8 @@ export function WorldPrizeDemo({
   const recentEvents = snapshot?.stats.recentEvents ?? [];
   const worldAppLabel = isRealMode
     ? isInstalled
-      ? 'World App detected'
-      : 'World App flow available'
+      ? 'Real World ID mode active'
+      : 'Real World ID mode — open in World App'
     : 'Mock mode active';
 
   return (
@@ -480,36 +480,45 @@ export function WorldPrizeDemo({
                   No purchase? Free daily entry with World ID
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                  {isRealMode
-                    ? 'In production, World App returns a proof that the backend verifies before storing a campaign-day nullifier. In this demo, Alice/Bob/Charlie simulate verified humans.'
-                    : 'In production, World App returns a proof that the backend verifies before storing a campaign-day nullifier. In this demo, Alice/Bob/Charlie simulate verified humans.'}
+                {isRealMode
+                  ? 'World App returns a proof that the backend verifies against the World verifier endpoint before storing a campaign-day nullifier. Open this page inside World App to verify.'
+                  : 'In production, World App returns a proof that the backend verifies before storing a campaign-day nullifier. In this demo, Alice/Bob/Charlie simulate verified humans.'}
                 </p>
-                <label className="mt-4 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                  Demo human
-                  <input
-                    value={formState.humanId}
-                    onChange={(event) =>
-                      setFormState((current) => ({
-                        ...current,
-                        humanId: event.target.value,
-                      }))
-                    }
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-300/50"
-                    placeholder="Alice"
-                  />
-                </label>
+                {!isRealMode && (
+                  <label className="mt-4 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    Demo human
+                    <input
+                      value={formState.humanId}
+                      onChange={(event) =>
+                        setFormState((current) => ({
+                          ...current,
+                          humanId: event.target.value,
+                        }))
+                      }
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-300/50"
+                      placeholder="Alice"
+                    />
+                  </label>
+                )}
 
                 {isRealMode ? (
                   <>
+                    {!isInstalled && (
+                      <p className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-xs leading-5 text-amber-50">
+                        Open in World App to verify with World ID. The free-entry path requires a World ID proof that can only be generated inside World App.
+                      </p>
+                    )}
                     <button
                       type="button"
                       onClick={() => void openWorldFlow()}
-                      disabled={busyAction === 'free_world_id'}
+                      disabled={busyAction === 'free_world_id' || !isInstalled}
                       className="mt-4 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {busyAction === 'free_world_id'
                         ? 'Opening IDKit…'
-                        : 'Open World ID request'}
+                        : isInstalled
+                          ? 'Verify with World ID'
+                          : 'Open in World App'}
                     </button>
 
                     {worldRpContext ? (
@@ -811,7 +820,7 @@ export function WorldPrizeDemo({
         </section>
 
         <footer className="pb-6 text-center text-xs uppercase tracking-[0.25em] text-slate-500">
-          WorldPrize demo • {worldConfig.mode} World ID mode • mock mode • in-memory demo state
+          WorldPrize demo • {worldConfig.mode === 'real' ? 'real' : 'mock'} World ID mode • Sybil-resistant free-entry path • in-memory demo state
         </footer>
       </div>
     </div>
