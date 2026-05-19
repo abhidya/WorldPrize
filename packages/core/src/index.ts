@@ -132,6 +132,8 @@ export interface PromotionStorage {
   commitEntry(input: CommitEntryInput): Promise<EntryResponse>;
   snapshot(campaignId: string): CampaignSnapshot;
   reset(campaignId: string): CampaignSnapshot;
+  seedCampaign?(campaign: CampaignConfig): void;
+  ensureCampaign?(campaign: CampaignConfig): void;
 }
 
 export interface PromotionEngineOptions {

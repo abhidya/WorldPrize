@@ -66,6 +66,7 @@ export const campaign: CampaignConfig = {
 };
 
 const storage = new MemoryStorage();
+storage.seedCampaign(campaign);
 const appId = process.env.NEXT_PUBLIC_WORLD_APP_ID ?? DEFAULT_WORLD_APP_ID;
 const rpId = process.env.WORLD_RP_ID ?? DEFAULT_WORLD_RP_ID;
 const actionFreeEntry =
@@ -142,10 +143,12 @@ export function getCampaign() {
 }
 
 export function getSnapshot(): CampaignSnapshot {
+  storage.ensureCampaign(campaign);
   return engine.snapshot(campaign.id);
 }
 
 export function resetDemoState(): CampaignSnapshot {
+  storage.seedCampaign(campaign);
   return engine.reset(campaign.id);
 }
 

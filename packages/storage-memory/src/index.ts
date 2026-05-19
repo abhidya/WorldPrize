@@ -71,6 +71,16 @@ function initialState(campaign: CampaignConfig): CampaignState {
 export class MemoryStorage implements PromotionStorage {
   private readonly campaigns = new Map<string, CampaignState>();
 
+  seedCampaign(campaign: CampaignConfig): void {
+    this.campaigns.set(campaign.id, initialState(campaign));
+  }
+
+  ensureCampaign(campaign: CampaignConfig): void {
+    if (!this.campaigns.has(campaign.id)) {
+      this.seedCampaign(campaign);
+    }
+  }
+
   private stateFor(campaign: CampaignConfig): CampaignState {
     const existing = this.campaigns.get(campaign.id);
     if (existing) {

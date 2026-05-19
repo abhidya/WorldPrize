@@ -53,17 +53,21 @@ Then open the demo app from `apps/demo`.
 
 Copy `.env.example` to the demo app environment file and set your secrets there.
 
-Required values:
+Required Vercel env:
 
 - `NEXT_PUBLIC_WORLD_APP_ID=app_25d16ee7904752aca5fef279f2fe11c7`
 - `WORLD_RP_ID=rp_3d1c7269a4c866a7`
 - `WORLD_ACTION_FREE_ENTRY=worldprize-free-entry-demo`
-- `WORLD_SIGNING_KEY=...` server-only secret
-- `WORLDPRIZE_MODE=mock|real`
+- `WORLDPRIZE_MODE=mock`
+- `NEXT_PUBLIC_WORLDPRIZE_MODE=mock`
+
+Optional/future real mode:
+
+- `WORLD_SIGNING_KEY=<server-only secret>`
 
 `WORLD_SIGNING_KEY` must never be exposed client-side.
 
-`WORLDPRIZE_MODE=mock` keeps the current Vercel demo mock-first with local mock humans and in-memory state. `WORLDPRIZE_MODE=real` is scaffolding only until server-side IDKit verification and persistent nullifier storage are configured.
+`WORLDPRIZE_MODE=mock` and `NEXT_PUBLIC_WORLDPRIZE_MODE=mock` keep the current Vercel demo mock-first with local mock humans and in-memory state. `WORLDPRIZE_MODE=real` is scaffolding only until server-side IDKit verification and persistent nullifier storage are configured.
 
 ## Demo behavior
 

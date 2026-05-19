@@ -11,7 +11,7 @@ import {
   type IDKitResult,
   type RpContext,
 } from '@worldcoin/idkit';
-import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
+import { MiniKit } from '@worldcoin/minikit-js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type WorldConfig = {
@@ -146,7 +146,7 @@ export function WorldPrizeDemo({
     verified: true;
     nullifier: string;
   } | null>(null);
-  const { isInstalled } = useMiniKit();
+  const [isInstalled, setIsInstalled] = useState(false);
   const isRealMode = worldConfig.mode === 'real';
 
   const refreshSnapshot = useCallback(async () => {
@@ -164,6 +164,14 @@ export function WorldPrizeDemo({
   useEffect(() => {
     void refreshSnapshot();
   }, [refreshSnapshot]);
+
+  useEffect(() => {
+    try {
+      setIsInstalled(Boolean(MiniKit.isInstalled()));
+    } catch {
+      setIsInstalled(false);
+    }
+  }, []);
 
   const entryTitle = useMemo(
     () =>
@@ -377,7 +385,7 @@ export function WorldPrizeDemo({
                 WorldPrize
               </p>
               <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                World ID-protected free-entry demo for instant-win promos.
+                World ID-protected AMOE/free-entry demo for instant-win promos.
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
                 Many purchase-based instant-win promotions need a no-purchase/free entry route. WorldPrize shows how that free route can stay accessible without becoming an unlimited bot target.
@@ -706,21 +714,26 @@ export function WorldPrizeDemo({
                 </span>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                {snapshot &&
-                Object.keys(snapshot.stats.inventory).length > 0 ? (
-                  Object.entries(snapshot.stats.inventory).map(
-                    ([prize, count]) => (
-                      <span
-                        key={prize}
-                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-200"
-                      >
-                        {prize} × {count}
-                      </span>
-                    ),
+                {snapshot ? (
+                  Object.keys(snapshot.stats.inventory).length > 0 ? (
+                    Object.entries(snapshot.stats.inventory).map(
+                      ([prize, count]) => (
+                        <span
+                          key={prize}
+                          className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-200"
+                        >
+                          {prize} × {count}
+                        </span>
+                      ),
+                    )
+                  ) : (
+                    <span className="text-sm text-slate-400">
+                      All prizes have been claimed.
+                    </span>
                   )
                 ) : (
                   <span className="text-sm text-slate-400">
-                    All prizes have been claimed.
+                    Loading inventory…
                   </span>
                 )}
               </div>
@@ -798,8 +811,7 @@ export function WorldPrizeDemo({
         </section>
 
         <footer className="pb-6 text-center text-xs uppercase tracking-[0.25em] text-slate-500">
-          WorldPrize demo • {worldConfig.mode} World ID mode • server-backed
-          state for the current process only
+          WorldPrize demo • {worldConfig.mode} World ID mode • mock mode • in-memory demo state
         </footer>
       </div>
     </div>
