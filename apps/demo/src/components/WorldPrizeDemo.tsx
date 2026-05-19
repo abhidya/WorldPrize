@@ -23,7 +23,15 @@ type WorldConfig = {
 };
 
 type WorldPrizeDemoProps = {
-  worldConfig: WorldConfig;
+  worldConfig?: WorldConfig;
+};
+
+const defaultWorldConfig: WorldConfig = {
+  mode: 'mock',
+  appId: 'app_25d16ee7904752aca5fef279f2fe11c7',
+  rpId: 'rp_3d1c7269a4c866a7',
+  actionFreeEntry: 'worldprize-free-entry-demo',
+  signingKeyConfigured: false,
 };
 
 type EntryFormState = {
@@ -122,7 +130,9 @@ function Stat({
   );
 }
 
-export function WorldPrizeDemo({ worldConfig }: WorldPrizeDemoProps) {
+export function WorldPrizeDemo({
+  worldConfig = defaultWorldConfig,
+}: WorldPrizeDemoProps = {}) {
   const [snapshot, setSnapshot] = useState<CampaignSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -367,12 +377,13 @@ export function WorldPrizeDemo({ worldConfig }: WorldPrizeDemoProps) {
                 WorldPrize
               </p>
               <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                World ID-protected AMOE/free-entry demo for instant-win promos.
+                World ID-protected free-entry demo for instant-win promos.
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-                Product codes still work, but the free path is gated by a
-                World ID proof in real mode. Mock mode keeps the interview demo
-                quick and local.
+                Many purchase-based instant-win promotions need a no-purchase/free entry route. WorldPrize shows how that free route can stay accessible without becoming an unlimited bot target.
+              </p>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                Product codes still drive purchase engagement, while the free-entry route is protected by one-human-per-day proof. Duplicate attempts are blocked, and the public audit trail masks sensitive identifiers.
               </p>
               <div className="mt-4 inline-flex rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100">
                 {worldAppLabel}
@@ -429,8 +440,7 @@ export function WorldPrizeDemo({ worldConfig }: WorldPrizeDemoProps) {
                   I have a product code
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                  Simulates the purchase-driven path. Valid codes are accepted
-                  once, then locked.
+                  Simulates the purchase-driven path. Valid package codes are accepted once, then locked.
                 </p>
                 <label className="mt-4 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
                   Code
@@ -443,7 +453,7 @@ export function WorldPrizeDemo({ worldConfig }: WorldPrizeDemoProps) {
                       }))
                     }
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-300/50"
-                    placeholder="TREAT-001"
+                    placeholder="SNACK-123"
                   />
                 </label>
                 <button
@@ -463,11 +473,11 @@ export function WorldPrizeDemo({ worldConfig }: WorldPrizeDemoProps) {
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
                   {isRealMode
-                    ? 'Real mode signs RP requests on the server, opens IDKit, verifies the proof server-side, then stores the nullifier.'
-                    : 'Mock mode keeps the interview demo fast: the free path uses demo humans outside World App.'}
+                    ? 'In production, World App returns a proof that the backend verifies before storing a campaign-day nullifier. In this demo, Alice/Bob/Charlie simulate verified humans.'
+                    : 'In production, World App returns a proof that the backend verifies before storing a campaign-day nullifier. In this demo, Alice/Bob/Charlie simulate verified humans.'}
                 </p>
                 <label className="mt-4 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                  Human label
+                  Demo human
                   <input
                     value={formState.humanId}
                     onChange={(event) =>
@@ -598,8 +608,7 @@ export function WorldPrizeDemo({ worldConfig }: WorldPrizeDemoProps) {
                 </>
               ) : (
                 <p className="text-sm leading-6 text-slate-100/90">
-                  Use a product code or a World ID proof to see the
-                  instant-win response.
+                  Use a product code or a mock World ID proof to see the instant-win response. The demo uses deterministic mock identities and code inventory so the interview flow is repeatable.
                 </p>
               )}
             </div>
@@ -609,7 +618,7 @@ export function WorldPrizeDemo({ worldConfig }: WorldPrizeDemoProps) {
                   Public rules
                 </p>
                 <p className="mt-2 text-slate-200">
-                  One verified human per campaign day, or one-time code use.
+                  One verified human per campaign day, or one-time code use. Production campaigns may need a fallback AMOE for users who cannot access World ID.
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">

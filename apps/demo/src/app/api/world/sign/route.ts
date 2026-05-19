@@ -1,3 +1,4 @@
+// This is mock/placeholder scaffolding for the interview demo. Production real mode must use IDKit/World App proof generation, backend RP signing, verification at the World verifier endpoint, and persistent nullifier storage.
 import { createWorldRpContext } from '@/lib/worldprize/world';
 
 export const dynamic = 'force-dynamic';

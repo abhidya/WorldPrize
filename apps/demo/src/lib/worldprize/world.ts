@@ -1,5 +1,7 @@
 import 'server-only';
 
+// This is mock/placeholder scaffolding for the interview demo. Production real mode must use IDKit/World App proof generation, backend RP signing, verification at the World verifier endpoint, and persistent nullifier storage.
+
 import {
   MockWorldIdVerificationProvider,
   WorldIdVerificationProvider,

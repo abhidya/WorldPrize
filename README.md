@@ -6,10 +6,10 @@ It is an interview demo and reference integration, not a full SaaS product and n
 
 ## Deployment modes
 
-- **Mock mode:** local development and GitHub Pages demo use the in-memory mock flow.
-- **Real mode:** deployed app on Vercel or Cloudflare Functions uses the server-side World ID v4 flow.
+- **Mock-first Vercel demo:** the current Vercel-ready demo uses deterministic mock humans and in-memory state so interviews are repeatable.
+- **Real mode:** a production integration requires server-side IDKit verification, backend RP signing, verification at the World verifier endpoint, and persistent nullifier storage.
 
-GitHub Pages is **mock-only**. It cannot run the backend verification route required for real World ID verification.
+GitHub Pages is **mock-only**. It cannot run backend signing, verifier, or persistent storage required for real World ID verification.
 
 ## What’s in the repo
 
@@ -63,7 +63,7 @@ Required values:
 
 `WORLD_SIGNING_KEY` must never be exposed client-side.
 
-`WORLDPRIZE_MODE=mock` keeps the demo on local mock humans and in-memory state. `WORLDPRIZE_MODE=real` switches the free-entry path to the real World ID v4 verification flow.
+`WORLDPRIZE_MODE=mock` keeps the current Vercel demo mock-first with local mock humans and in-memory state. `WORLDPRIZE_MODE=real` is scaffolding only until server-side IDKit verification and persistent nullifier storage are configured.
 
 ## Demo behavior
 
@@ -83,7 +83,7 @@ Expected demo outcomes:
 
 ## Real World ID v4 flow
 
-In real mode the flow is:
+Current Vercel demo is mock-first. Real World ID mode requires server-side IDKit verification and persistent storage before production use. In production, the flow is:
 
 1. The frontend requests a server-signed RP context from `/api/world/sign`.
 2. The app opens the World App / IDKit verification flow with:
@@ -93,9 +93,9 @@ In real mode the flow is:
    - `rp_context =` the server-signed context
 3. IDKit returns the verification result to the app.
 4. The app sends that result to `/api/world/verify` or directly to `/api/enter`.
-5. The backend forwards the payload to the World verification service, extracts the nullifier, and stores it server-side.
+5. The backend forwards the payload to the World verifier endpoint, extracts the nullifier, and stores it in persistent campaign-day storage.
 
-The key rule is that the client never fabricates proof data and never sees `WORLD_SIGNING_KEY`.
+The key rule is that the client never fabricates proof data and never sees `WORLD_SIGNING_KEY`. GitHub Pages remains mock-only because it has no backend verification path.
 
 ## Important docs
 
