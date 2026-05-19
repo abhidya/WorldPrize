@@ -1,4 +1,3 @@
-// This is mock/placeholder scaffolding for the interview demo. Production real mode must use IDKit/World App proof generation, backend RP signing, verification at the World verifier endpoint, and persistent nullifier storage.
 import { verifyWorldIdResult } from '@/lib/worldprize/world';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +22,11 @@ export async function POST(request: Request) {
       {
         verified: false,
         reason: result.reason ?? 'INVALID_PROOF',
-        verification: result.verification ?? null,
+        message:
+          result.reason === 'MISSING_NULLIFIER'
+            ? 'World ID verification did not produce a nullifier hash.'
+            : 'World ID verification failed.',
+        debugShape: result.debugShape ?? null,
       },
       { status: 400 },
     );
@@ -32,6 +35,5 @@ export async function POST(request: Request) {
   return Response.json({
     verified: true,
     nullifier: result.nullifierHash,
-    verification: result.verification ?? null,
   });
 }

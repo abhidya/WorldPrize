@@ -143,10 +143,6 @@ export function WorldPrizeDemo({
   const [worldRpContext, setWorldRpContext] = useState<RpContext | null>(null);
   const [worldIdkitResult, setWorldIdkitResult] =
     useState<IDKitResult | null>(null);
-  const [worldVerificationResult, setWorldVerificationResult] = useState<{
-    verified: true;
-    nullifier: string;
-  } | null>(null);
 
   const isRealMode = worldConfig.mode === 'real';
   const recentEvents = snapshot?.stats.recentEvents ?? [];
@@ -281,7 +277,6 @@ export function WorldPrizeDemo({
       }
 
       setWorldIdkitResult(null);
-      setWorldVerificationResult(null);
       setWorldOpen(true);
     } catch {
       setResult({
@@ -308,10 +303,6 @@ export function WorldPrizeDemo({
     if (!response.ok) {
       throw new Error('Backend verification failed');
     }
-
-    setWorldVerificationResult(
-      (await response.json()) as { verified: true; nullifier: string },
-    );
   }, []);
 
   const submitRealWorldEntry = useCallback(async () => {
@@ -322,16 +313,15 @@ export function WorldPrizeDemo({
     setBusyAction('free_world_id');
     setResult(null);
     try {
+      const dayKey = new Date().toISOString().slice(0, 10);
       const response = await fetch('/api/enter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           method: 'free_world_id',
-          humanLabel: formState.humanId,
-          dayKey: new Date().toISOString().slice(0, 10),
-          source: isInstalled ? 'world-app' : 'browser',
+          dayKey,
+          source: 'world-id',
           idkitResult: worldIdkitResult,
-          verificationResult: worldVerificationResult,
         }),
       });
 
@@ -350,11 +340,8 @@ export function WorldPrizeDemo({
       setBusyAction(null);
     }
   }, [
-    formState.humanId,
-    isInstalled,
     updateResultFromResponse,
     worldIdkitResult,
-    worldVerificationResult,
   ]);
 
   const submitEntry = useCallback(
@@ -424,7 +411,6 @@ export function WorldPrizeDemo({
       setFormState(initialFormState);
       setWorldRpContext(null);
       setWorldIdkitResult(null);
-      setWorldVerificationResult(null);
       setWorldOpen(false);
     } catch {
       setLoadError('Reset failed.');

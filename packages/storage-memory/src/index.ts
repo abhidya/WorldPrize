@@ -250,11 +250,16 @@ export class MemoryStorage implements PromotionStorage {
     input: CommitEntryInput,
     request: Extract<CommitEntryInput['request'], { method: 'free_world_id' }>,
   ): EntryResponse {
-    const humanLabel = request.proof?.humanLabel ?? 'guest';
-    const actorMasked = maskHuman(humanLabel);
-    const inputMasked = maskHuman(humanLabel);
+    const humanLabel = request.proof?.humanLabel ?? 'verified human';
     const dayKey = input.dayKey ?? todayKey();
     const nullifierHash = input.nullifierHash ?? null;
+    const isMockProof = request.proof?.mock === true;
+    const actorMasked = isMockProof
+      ? maskHuman(humanLabel)
+      : nullifierHash
+        ? maskValue(nullifierHash, 2, 2)
+        : 'verified human';
+    const inputMasked = isMockProof ? maskHuman(humanLabel) : 'World ID proof';
 
     if (!nullifierHash) {
       state.invalidProofAttempts += 1;

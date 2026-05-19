@@ -4,6 +4,7 @@ import 'server-only';
 
 import {
   MockWorldIdVerificationProvider,
+  extractWorldNullifier as extractWorldNullifierFromWorldId,
   WorldIdVerificationProvider,
 } from '@worldprize/world-id';
 import { signRequest } from '@worldcoin/idkit-core/signing';
@@ -68,6 +69,32 @@ async function safeJson<T>(response: Response): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+function objectKeys(value: unknown): string[] {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.keys(value)
+    : [];
+}
+
+function firstObjectKeys(value: unknown, key: 'responses' | 'results'): string[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return [];
+  }
+
+  const candidate = (value as Record<string, unknown>)[key];
+  if (!Array.isArray(candidate) || candidate.length === 0) {
+    return [];
+  }
+
+  const first = candidate[0];
+  return first && typeof first === 'object' && !Array.isArray(first)
+    ? Object.keys(first)
+    : [];
+}
+
+export function extractWorldNullifier(payload: unknown): string | null {
+  return extractWorldNullifierFromWorldId(payload);
 }
 
 export function getWorldConfig() {
@@ -155,23 +182,47 @@ export async function verifyWorldIdResult(input: unknown) {
     },
   );
 
-  const verification = await safeJson<{
-    success?: boolean;
-    nullifier?: string;
-    results?: Array<{ success?: boolean; nullifier?: string }>;
-    action?: string;
-    message?: string;
-  }>(response);
+  const verification = await safeJson<unknown>(response);
+  const responseNullifier = extractWorldNullifier(verification);
+  const inputNullifier = extractWorldNullifier(idkitResult);
+  const nullifierHash = responseNullifier ?? inputNullifier;
+  const debugShape = {
+    verifierStatus: response.status,
+    verifierTopLevelKeys: objectKeys(verification),
+    hasResponsesArray:
+      Boolean(
+        verification &&
+          typeof verification === 'object' &&
+          !Array.isArray(verification) &&
+          Array.isArray((verification as Record<string, unknown>).responses),
+      ),
+    hasResultsArray:
+      Boolean(
+        verification &&
+          typeof verification === 'object' &&
+          !Array.isArray(verification) &&
+          Array.isArray((verification as Record<string, unknown>).results),
+      ),
+    firstResponseKeys: firstObjectKeys(verification, 'responses'),
+    firstResultKeys: firstObjectKeys(verification, 'results'),
+    inputTopLevelKeys: objectKeys(idkitResult),
+  };
 
-  const nullifierHash =
-    verification?.nullifier ??
-    verification?.results?.find((result) => result.success)?.nullifier;
-
-  if (!response.ok || !nullifierHash) {
+  if (!response.ok) {
     return {
       ok: false,
       reason: 'INVALID_PROOF' as const,
       verification,
+      debugShape,
+    };
+  }
+
+  if (!nullifierHash) {
+    return {
+      ok: false,
+      reason: 'MISSING_NULLIFIER' as const,
+      verification,
+      debugShape,
     };
   }
 
@@ -179,5 +230,6 @@ export async function verifyWorldIdResult(input: unknown) {
     ok: true,
     nullifierHash,
     verification,
+    debugShape,
   };
 }

@@ -1,11 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createFreeEntryAction,
   createPromotionEngine,
   type CampaignConfig,
 } from '../src/index';
 import { MemoryStorage } from '../../storage-memory/src/index';
-import { MockWorldIdVerificationProvider } from '../../world-id/src/index';
+import {
+  MockWorldIdVerificationProvider,
+  WorldIdVerificationProvider,
+  extractWorldNullifier,
+} from '../../world-id/src/index';
 
 const dayKey = '2026-05-19';
 
@@ -38,6 +42,26 @@ function makeEngine(
   const verificationProvider = new MockWorldIdVerificationProvider({
     appId: 'app_test',
     rpId: 'rp_test',
+  });
+
+  const engine = createPromotionEngine({
+    storage,
+    verificationProvider,
+    rng,
+  });
+
+  return { engine, storage, campaign };
+}
+
+function makeRealEngine(
+  fetchImpl: typeof fetch,
+  rng: () => number = () => 0.1,
+  campaign: CampaignConfig = makeCampaign(),
+) {
+  const storage = new MemoryStorage();
+  const verificationProvider = new WorldIdVerificationProvider({
+    rpId: 'rp_test',
+    fetchImpl,
   });
 
   const engine = createPromotionEngine({
@@ -82,6 +106,17 @@ async function enterFreeHuman(
 }
 
 describe('WorldPrize promotion engine', () => {
+  it('extractWorldNullifier reads common verifier shapes', () => {
+    expect(extractWorldNullifier({ nullifier: 'n1' })).toBe('n1');
+    expect(extractWorldNullifier({ nullifier_hash: 'n2' })).toBe('n2');
+    expect(extractWorldNullifier({ responses: [{ nullifier: 'n3' }] })).toBe('n3');
+    expect(extractWorldNullifier({ results: [{ success: true, nullifier: 'n4' }] })).toBe('n4');
+    expect(
+      extractWorldNullifier({ idkitResult: { responses: [{ nullifier: 'n5' }] } }),
+    ).toBe('n5');
+    expect(extractWorldNullifier({ missing: true })).toBeNull();
+  });
+
   it('valid product code can enter once', async () => {
     const { engine, campaign } = makeEngine(() => 0.1);
     const result = await enterProductCode(engine, campaign, 'SNACK-123');
@@ -196,6 +231,83 @@ describe('WorldPrize promotion engine', () => {
     const event = engine.snapshot(campaign.id).audit[0];
     expect(event?.nullifierMasked).toContain('…');
     expect(event?.nullifierMasked).not.toContain('Alice');
+  });
+
+  it('real verified proof uses nullifier and masks World ID input', async () => {
+    const fetchImpl = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          responses: [{ success: true, nullifier: 'real-nullifier-123' }],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+    const { engine, campaign } = makeRealEngine(fetchImpl, () => 0.1);
+
+    const result = await engine.enter({
+      campaign,
+      method: 'free_world_id',
+      proof: {
+        action: createFreeEntryAction(campaign.id, dayKey),
+        dayKey,
+        humanLabel: 'verified human',
+        payload: {
+          verified: true,
+          nullifier: 'real-nullifier-123',
+        },
+      },
+      dayKey,
+      source: 'world-id',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.result.status).toBe('WIN');
+    expect(result.result.actorMasked).not.toContain('Alice');
+    expect(result.result.inputMasked).toBe('World ID proof');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('real verified proof blocks duplicate same day', async () => {
+    const fetchImpl = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          responses: [{ success: true, nullifier: 'dup-nullifier-123' }],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+    const { engine, campaign } = makeRealEngine(fetchImpl, () => 0.1);
+
+    const proof = {
+      action: createFreeEntryAction(campaign.id, dayKey),
+      dayKey,
+      humanLabel: 'verified human',
+      payload: {
+        verified: true,
+        nullifier: 'dup-nullifier-123',
+      },
+    };
+
+    await engine.enter({
+      campaign,
+      method: 'free_world_id',
+      proof,
+      dayKey,
+      source: 'world-id',
+    });
+
+    const duplicate = await engine.enter({
+      campaign,
+      method: 'free_world_id',
+      proof,
+      dayKey,
+      source: 'world-id',
+    });
+
+    expect(duplicate.result.status).toBe('ALREADY_ENTERED');
+    expect(duplicate.stats.duplicateFreeAttempts).toBe(1);
   });
 
   it('admin stats count duplicate attempts', async () => {

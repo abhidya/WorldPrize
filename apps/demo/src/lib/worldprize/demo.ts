@@ -39,7 +39,7 @@ export type DemoEntryPayload =
     }
   | {
       method: 'free_world_id';
-      humanLabel: string;
+      humanLabel?: string;
       source?: string;
       dayKey?: string;
       idkitResult?: unknown;
@@ -160,7 +160,7 @@ export async function enterProductCode(
 }
 
 export async function enterFreeWorldId(input: {
-  humanLabel: string;
+  humanLabel?: string;
   source?: string;
   dayKey?: string;
   idkitResult?: unknown;
@@ -172,11 +172,11 @@ export async function enterFreeWorldId(input: {
     input.proof ??
     (worldPrizeMode === 'real'
       ? createRealFreeWorldProof(
-          input.humanLabel,
+          input.humanLabel ?? 'verified human',
           dayKey,
           input.verificationResult ?? input.idkitResult,
         )
-      : createMockFreeWorldProof(input.humanLabel, dayKey));
+      : createMockFreeWorldProof(input.humanLabel ?? 'Guest', dayKey));
 
   return engine.enter({
     campaign,
@@ -274,12 +274,21 @@ export async function enterDemoEntry(
     return enterProductCode(request.code, request.source);
   }
 
+  if (request.proof) {
+    return enterFreeWorldId({
+      source: request.source,
+      dayKey: request.dayKey,
+      idkitResult: request.idkitResult,
+      verificationResult: request.verificationResult,
+      proof: request.proof,
+    });
+  }
+
   return enterFreeWorldId({
     humanLabel: request.humanLabel,
     source: request.source,
     dayKey: request.dayKey,
     idkitResult: request.idkitResult,
     verificationResult: request.verificationResult,
-    proof: request.proof ?? undefined,
   });
 }
