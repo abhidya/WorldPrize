@@ -8,6 +8,7 @@ import {
   type CampaignSnapshot,
   type CommitEntryInput,
   type DemoStats,
+  type EntryMethod,
   type EntryResponse,
   type EntryStatus,
   type PromotionStorage,

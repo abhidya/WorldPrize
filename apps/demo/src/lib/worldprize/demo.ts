@@ -8,7 +8,6 @@ import {
   type CampaignSnapshot,
   type EntryRequest,
   type EntryResponse,
-  type SimulationResponse,
   type VerificationProof,
 } from '@worldprize/core';
 import { MemoryStorage } from '@worldprize/storage-memory';
@@ -25,7 +24,13 @@ import {
   type WorldPrizeMode,
 } from './config';
 
-export type { CampaignSnapshot, EntryResponse, SimulationResponse } from '@worldprize/core';
+export type { CampaignSnapshot, EntryResponse } from '@worldprize/core';
+
+export type SimulationResponse = {
+  scenario: 'alice-five' | 'bots-100' | 'reuse-code';
+  results: EntryResponse[];
+  stats: CampaignSnapshot['stats'];
+};
 
 export type DemoEntryPayload =
   | {
