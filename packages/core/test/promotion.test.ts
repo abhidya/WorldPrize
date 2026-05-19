@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createFreeEntryAction,
   createPromotionEngine,
@@ -10,6 +10,14 @@ import {
   WorldIdVerificationProvider,
   extractWorldNullifier,
 } from '../../world-id/src/index';
+
+vi.mock('server-only', () => ({}));
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+  vi.resetModules();
+});
 
 const dayKey = '2026-05-19';
 
@@ -115,6 +123,60 @@ describe('WorldPrize promotion engine', () => {
       extractWorldNullifier({ idkitResult: { responses: [{ nullifier: 'n5' }] } }),
     ).toBe('n5');
     expect(extractWorldNullifier({ missing: true })).toBeNull();
+  });
+
+  it('verifyWorldIdResult extracts nullifier from verifier responses and wrapped input', async () => {
+    vi.stubEnv('WORLDPRIZE_MODE', 'real');
+    vi.stubEnv('WORLD_RP_ID', 'rp_test');
+
+    const fetchImpl = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          responses: [{ success: true, nullifier_hash: 'verify-nullifier-1' }],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    vi.stubGlobal('fetch', fetchImpl as typeof fetch);
+    const { verifyWorldIdResult } = await import(
+      '../../../apps/demo/src/lib/worldprize/world'
+    );
+
+    const result = await verifyWorldIdResult({
+      idkitResult: { response: { ok: true } },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.nullifierHash).toBe('verify-nullifier-1');
+    expect(result.debugShape?.verifierStatus).toBe(200);
+    expect(result.debugShape?.hasResponsesArray).toBe(true);
+  });
+
+  it('verifyWorldIdResult reports missing nullifier with safe debug shape', async () => {
+    vi.stubEnv('WORLDPRIZE_MODE', 'real');
+    vi.stubEnv('WORLD_RP_ID', 'rp_test');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response(JSON.stringify({ success: true, responses: [{}] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }) as typeof fetch,
+    );
+
+    const { verifyWorldIdResult } = await import(
+      '../../../apps/demo/src/lib/worldprize/world'
+    );
+
+    const result = await verifyWorldIdResult({ idkitResult: { proof: {} } });
+
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe('MISSING_NULLIFIER');
+    expect(result.debugShape?.inputTopLevelKeys).toContain('proof');
   });
 
   it('valid product code can enter once', async () => {
