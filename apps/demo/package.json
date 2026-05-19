@@ -15,6 +15,7 @@
   "dependencies": {
     "@worldcoin/idkit": "^4.0.0",
     "@worldcoin/idkit-core": "^4.0.0",
+    "@worldcoin/mini-apps-ui-kit-react": "^1.6.0",
     "@worldcoin/minikit-js": "^2.0.3",
     "@worldprize/core": "workspace:*",
     "@worldprize/storage-memory": "workspace:*",
