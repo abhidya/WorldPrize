@@ -1,0 +1,16 @@
+{
+  "name": "worldprize",
+  "private": true,
+  "packageManager": "pnpm@10.11.0",
+  "scripts": {
+    "dev": "pnpm --filter @worldprize/demo dev",
+    "build": "pnpm --filter @worldprize/demo build",
+    "test": "pnpm --filter @worldprize/core test",
+    "lint": "pnpm --filter @worldprize/demo lint"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "typescript": "^5.9.2",
+    "vitest": "^2.1.8"
+  }
+}

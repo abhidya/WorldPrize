@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# next.js / build output
+.next/
+**/.next/
+out/
+dist/
+coverage/
+
+# logs
+*.log
+
+# env files
+.env
+.env.*
+!.env.example
+!.**/.env.example
+
+# misc
+.DS_Store
+.idea/
+.vscode/
+.omx/
+
+# legacy local app artifacts
+my-first-mini-app/.next/
+my-first-mini-app/node_modules/
