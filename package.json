@@ -3,10 +3,10 @@
   "private": true,
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "dev": "pnpm --filter @worldprize/demo dev",
-    "build": "pnpm --filter @worldprize/demo build",
+    "dev": "cd apps/demo && ./node_modules/.bin/next dev",
+    "build": "cd apps/demo && ./node_modules/.bin/next build",
     "test": "./node_modules/.bin/vitest run packages/core/test/promotion.test.ts",
-    "lint": "pnpm --filter @worldprize/demo lint"
+    "lint": "cd apps/demo && ./node_modules/.bin/eslint ."
   },
   "devDependencies": {
     "@types/node": "^20.19.0",

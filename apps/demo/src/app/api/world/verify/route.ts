@@ -1,12 +1,10 @@
 import { verifyWorldIdResult } from '@/lib/worldprize/world';
-import type { IDKitResult } from '@worldcoin/idkit';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as
-    | { idkitResult?: IDKitResult }
-    | IDKitResult
+    | { idkitResult?: unknown }
     | null;
 
   const payload =

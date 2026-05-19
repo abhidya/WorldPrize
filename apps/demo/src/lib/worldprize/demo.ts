@@ -39,6 +39,7 @@ export type DemoEntryPayload =
       source?: string;
       dayKey?: string;
       idkitResult?: unknown;
+      verificationResult?: { verified: true; nullifier: string } | null;
       proof?: VerificationProof | null;
     };
 
@@ -74,9 +75,19 @@ const verificationProvider =
     ? new WorldIdVerificationProvider({ rpId })
     : new MockWorldIdVerificationProvider({ appId, rpId });
 
+const simulationVerificationProvider = new MockWorldIdVerificationProvider({
+  appId,
+  rpId,
+});
+
 const engine = createPromotionEngine({
   storage,
   verificationProvider,
+});
+
+const simulationEngine = createPromotionEngine({
+  storage,
+  verificationProvider: simulationVerificationProvider,
 });
 
 function todayKey(date = new Date()): string {
@@ -146,6 +157,7 @@ export async function enterFreeWorldId(input: {
   source?: string;
   dayKey?: string;
   idkitResult?: unknown;
+  verificationResult?: { verified: true; nullifier: string } | null;
   proof?: VerificationProof | null;
 }): Promise<EntryResponse> {
   const dayKey = input.dayKey ?? todayKey();
@@ -155,7 +167,7 @@ export async function enterFreeWorldId(input: {
       ? createRealFreeWorldProof(
           input.humanLabel,
           dayKey,
-          input.idkitResult,
+          input.verificationResult ?? input.idkitResult,
         )
       : createMockFreeWorldProof(input.humanLabel, dayKey));
 
@@ -184,27 +196,40 @@ export async function runSimulation(
 
   if (scenario === 'alice-five') {
     for (let index = 0; index < 5; index += 1) {
-      results.push(
-        await engine.enter({
-          campaign,
-          method: 'free_world_id',
-          proof: createMockFreeWorldProof('Alice', todayKey()),
-          dayKey: todayKey(),
-          source: 'simulator',
-        }),
-      );
+      results.push(await simulationEngine.enter({
+        campaign,
+        method: 'free_world_id',
+        proof: createMockFreeWorldProof('Alice', todayKey()),
+        dayKey: todayKey(),
+        source: 'simulator',
+      }));
     }
   }
 
   if (scenario === 'bots-100') {
     for (let index = 0; index < 100; index += 1) {
-      results.push(await enterBotAttempt('simulator'));
+      results.push(await simulationEngine.enter({
+        campaign,
+        method: 'free_world_id',
+        proof: null,
+        source: 'simulator',
+      }));
     }
   }
 
   if (scenario === 'reuse-code') {
-    results.push(await enterProductCode('SNACK-123', 'simulator'));
-    results.push(await enterProductCode('SNACK-123', 'simulator'));
+    results.push(await simulationEngine.enter({
+      campaign,
+      method: 'product_code',
+      code: 'SNACK-123',
+      source: 'simulator',
+    }));
+    results.push(await simulationEngine.enter({
+      campaign,
+      method: 'product_code',
+      code: 'SNACK-123',
+      source: 'simulator',
+    }));
   }
 
   return {
@@ -218,6 +243,7 @@ export async function enterEntry(
   request: EntryRequest & {
     humanLabel?: string;
     idkitResult?: unknown;
+    verificationResult?: { verified: true; nullifier: string } | null;
   },
 ): Promise<EntryResponse> {
   if (request.method === 'product_code') {
@@ -229,6 +255,7 @@ export async function enterEntry(
     source: request.source,
     dayKey: request.dayKey,
     idkitResult: request.idkitResult,
+    verificationResult: request.verificationResult,
     proof: request.proof,
   });
 }
@@ -245,6 +272,7 @@ export async function enterDemoEntry(
     source: request.source,
     dayKey: request.dayKey,
     idkitResult: request.idkitResult,
+    verificationResult: request.verificationResult,
     proof: request.proof ?? undefined,
   });
 }
