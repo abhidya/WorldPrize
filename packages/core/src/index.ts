@@ -279,3 +279,9 @@ export function headlineForEntry(status: EntryStatus): string {
 export function ratioFromRule(rule: InstantWinRule, rng: () => number): boolean {
   return shouldWin(rule, rng);
 }
+
+export interface SimulationResponse {
+  scenario: 'alice-five' | 'bots-100' | 'reuse-code';
+  results: EntryResponse[];
+  stats: DemoStats;
+}
