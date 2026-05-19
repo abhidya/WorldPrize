@@ -3,28 +3,19 @@
 import { MiniKitProvider } from '@worldcoin/minikit-js/minikit-provider';
 import { SessionProvider } from 'next-auth/react';
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
-
-const worldAppId = process.env.NEXT_PUBLIC_WORLD_APP_ID;
-
-function MissingMiniKitAppIdFallback({ children }: { children: ReactNode }) {
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        'NEXT_PUBLIC_WORLD_APP_ID is not configured; MiniKit is disabled for this render.',
-      );
-    }
-  }, []);
-
-  return <>{children}</>;
-}
+const worldAppId =
+  process.env.NEXT_PUBLIC_WORLD_APP_ID ?? process.env.NEXT_PUBLIC_APP_ID;
 
 export default function ClientProviders({ children }: { children: ReactNode }) {
-  const miniKit = worldAppId ? (
-    <MiniKitProvider props={{ appId: worldAppId }}>{children}</MiniKitProvider>
-  ) : (
-    <MissingMiniKitAppIdFallback>{children}</MissingMiniKitAppIdFallback>
+  return (
+    <SessionProvider>
+      {worldAppId ? (
+        <MiniKitProvider props={{ appId: worldAppId }}>
+          {children}
+        </MiniKitProvider>
+      ) : (
+        children
+      )}
+    </SessionProvider>
   );
-
-  return <SessionProvider>{miniKit}</SessionProvider>;
 }
