@@ -1,6 +1,7 @@
 'use client';
 
 import { MiniKitProvider } from '@worldcoin/minikit-js/minikit-provider';
+import { SessionProvider } from 'next-auth/react';
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 
@@ -19,9 +20,11 @@ function MissingMiniKitAppIdFallback({ children }: { children: ReactNode }) {
 }
 
 export default function ClientProviders({ children }: { children: ReactNode }) {
-  if (!worldAppId) {
-    return <MissingMiniKitAppIdFallback>{children}</MissingMiniKitAppIdFallback>;
-  }
+  const miniKit = worldAppId ? (
+    <MiniKitProvider props={{ appId: worldAppId }}>{children}</MiniKitProvider>
+  ) : (
+    <MissingMiniKitAppIdFallback>{children}</MissingMiniKitAppIdFallback>
+  );
 
-  return <MiniKitProvider props={{ appId: worldAppId }}>{children}</MiniKitProvider>;
+  return <SessionProvider>{miniKit}</SessionProvider>;
 }
