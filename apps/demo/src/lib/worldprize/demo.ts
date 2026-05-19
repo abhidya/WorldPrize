@@ -21,7 +21,6 @@ import {
   DEFAULT_WORLD_APP_ID,
   DEFAULT_WORLD_RP_ID,
   normalizeWorldPrizeMode,
-  type WorldPrizeMode,
 } from './config';
 
 export type { CampaignSnapshot, EntryResponse } from '@worldprize/core';
