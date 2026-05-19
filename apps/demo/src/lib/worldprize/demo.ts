@@ -1,3 +1,5 @@
+import 'server-only';
+
 import {
   createCampaignHash,
   createFreeEntryAction,
@@ -15,6 +17,14 @@ import {
   WorldIdVerificationProvider,
 } from '@worldprize/world-id';
 
+import {
+  DEFAULT_WORLD_ACTION_FREE_ENTRY,
+  DEFAULT_WORLD_APP_ID,
+  DEFAULT_WORLD_RP_ID,
+  normalizeWorldPrizeMode,
+  type WorldPrizeMode,
+} from './config';
+
 export type { CampaignSnapshot, EntryResponse, SimulationResponse } from '@worldprize/core';
 
 export type DemoEntryPayload =
@@ -28,10 +38,11 @@ export type DemoEntryPayload =
       humanLabel: string;
       source?: string;
       dayKey?: string;
+      idkitResult?: unknown;
       proof?: VerificationProof | null;
     };
 
-const campaign: CampaignConfig = {
+export const campaign: CampaignConfig = {
   id: 'snack-drop-2026',
   brand: 'SnackCo',
   campaignName: 'Snack Drop 2026',
@@ -50,15 +61,17 @@ const campaign: CampaignConfig = {
 };
 
 const storage = new MemoryStorage();
-const appId =
-  process.env.NEXT_PUBLIC_WORLD_APP_ID ??
-  'app_25d16ee7904752aca5fef279f2fe11c7';
-const rpId = process.env.WORLD_RP_ID ?? 'rp_3d1c7269a4c866a7';
-const signingKey = process.env.WORLD_SIGNING_KEY;
+const appId = process.env.NEXT_PUBLIC_WORLD_APP_ID ?? DEFAULT_WORLD_APP_ID;
+const rpId = process.env.WORLD_RP_ID ?? DEFAULT_WORLD_RP_ID;
+const actionFreeEntry =
+  process.env.WORLD_ACTION_FREE_ENTRY ?? DEFAULT_WORLD_ACTION_FREE_ENTRY;
+const worldPrizeMode = normalizeWorldPrizeMode(
+  process.env.WORLDPRIZE_MODE ?? process.env.NEXT_PUBLIC_WORLDPRIZE_MODE,
+);
 
 const verificationProvider =
-  signingKey && signingKey.length > 0
-    ? new WorldIdVerificationProvider({ appId, rpId, signingKey })
+  worldPrizeMode === 'real'
+    ? new WorldIdVerificationProvider({ rpId })
     : new MockWorldIdVerificationProvider({ appId, rpId });
 
 const engine = createPromotionEngine({
@@ -66,12 +79,41 @@ const engine = createPromotionEngine({
   verificationProvider,
 });
 
+function todayKey(date = new Date()): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function createMockFreeWorldProof(
+  humanLabel: string,
+  dayKey: string,
+): VerificationProof {
+  return {
+    action: createFreeEntryAction(actionFreeEntry, dayKey),
+    dayKey,
+    humanLabel,
+    mock: true,
+  };
+}
+
+function createRealFreeWorldProof(
+  humanLabel: string,
+  dayKey: string,
+  idkitResult: unknown,
+): VerificationProof {
+  return {
+    action: actionFreeEntry,
+    dayKey,
+    humanLabel,
+    payload: idkitResult,
+  };
+}
+
 export const worldEnv = {
+  mode: worldPrizeMode,
   appId,
   rpId,
-  actionFreeEntry:
-    process.env.WORLD_ACTION_FREE_ENTRY ?? 'worldprize-free-entry-demo',
-  signingKeyConfigured: Boolean(signingKey),
+  actionFreeEntry,
+  signingKeyConfigured: Boolean(process.env.WORLD_SIGNING_KEY),
 };
 
 export const campaignHash = createCampaignHash(campaign);
@@ -99,27 +141,30 @@ export async function enterProductCode(
   return engine.enter({ campaign, method: 'product_code', code, source });
 }
 
-export async function enterFreeWorldId(
-  humanLabel: string,
-  source = 'web',
-  dayKey = new Date().toISOString().slice(0, 10),
-  proof?: VerificationProof | null,
-): Promise<EntryResponse> {
-  const freeProof =
-    proof ??
-    ({
-      action: createFreeEntryAction(worldEnv.actionFreeEntry, dayKey),
-      dayKey,
-      humanLabel,
-      mock: true,
-    } satisfies VerificationProof);
+export async function enterFreeWorldId(input: {
+  humanLabel: string;
+  source?: string;
+  dayKey?: string;
+  idkitResult?: unknown;
+  proof?: VerificationProof | null;
+}): Promise<EntryResponse> {
+  const dayKey = input.dayKey ?? todayKey();
+  const proof =
+    input.proof ??
+    (worldPrizeMode === 'real'
+      ? createRealFreeWorldProof(
+          input.humanLabel,
+          dayKey,
+          input.idkitResult,
+        )
+      : createMockFreeWorldProof(input.humanLabel, dayKey));
 
   return engine.enter({
     campaign,
     method: 'free_world_id',
-    proof: freeProof,
+    proof,
     dayKey,
-    source,
+    source: input.source ?? 'web',
   });
 }
 
@@ -139,7 +184,15 @@ export async function runSimulation(
 
   if (scenario === 'alice-five') {
     for (let index = 0; index < 5; index += 1) {
-      results.push(await enterFreeWorldId('Alice', 'simulator'));
+      results.push(
+        await engine.enter({
+          campaign,
+          method: 'free_world_id',
+          proof: createMockFreeWorldProof('Alice', todayKey()),
+          dayKey: todayKey(),
+          source: 'simulator',
+        }),
+      );
     }
   }
 
@@ -161,17 +214,23 @@ export async function runSimulation(
   };
 }
 
-export async function enterEntry(request: EntryRequest): Promise<EntryResponse> {
+export async function enterEntry(
+  request: EntryRequest & {
+    humanLabel?: string;
+    idkitResult?: unknown;
+  },
+): Promise<EntryResponse> {
   if (request.method === 'product_code') {
     return enterProductCode(request.code, request.source);
   }
 
-  return enterFreeWorldId(
-    request.proof?.humanLabel ?? 'Guest',
-    request.source,
-    request.dayKey,
-    request.proof,
-  );
+  return enterFreeWorldId({
+    humanLabel: request.humanLabel ?? 'Guest',
+    source: request.source,
+    dayKey: request.dayKey,
+    idkitResult: request.idkitResult,
+    proof: request.proof,
+  });
 }
 
 export async function enterDemoEntry(
@@ -181,10 +240,11 @@ export async function enterDemoEntry(
     return enterProductCode(request.code, request.source);
   }
 
-  return enterFreeWorldId(
-    request.humanLabel,
-    request.source,
-    request.dayKey,
-    request.proof ?? undefined,
-  );
+  return enterFreeWorldId({
+    humanLabel: request.humanLabel,
+    source: request.source,
+    dayKey: request.dayKey,
+    idkitResult: request.idkitResult,
+    proof: request.proof ?? undefined,
+  });
 }
