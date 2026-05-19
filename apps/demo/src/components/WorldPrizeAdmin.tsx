@@ -1,6 +1,7 @@
 'use client';
 
 import type { CampaignSnapshot } from '@/lib/worldprize/demo';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
 function Card({
@@ -103,12 +104,12 @@ export function WorldPrizeAdmin() {
               >
                 {loading ? 'Refreshing…' : 'Refresh'}
               </button>
-              <a
+              <Link
                 href="/"
                 className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20"
               >
                 Back to demo
-              </a>
+              </Link>
             </div>
           </div>
         </header>

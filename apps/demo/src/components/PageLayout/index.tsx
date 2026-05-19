@@ -1,4 +1,4 @@
-import { BottomBar, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { BottomBar } from '@worldcoin/mini-apps-ui-kit-react';
 import type { ReactNode } from 'react';
 import { Navigation } from '@/components/Navigation';
 
@@ -8,11 +8,9 @@ export function PageLayoutHeader({
   children?: ReactNode;
 }) {
   return (
-    <TopBar>
-      <div className="flex w-full items-center justify-between px-4 py-3">
-        {children}
-      </div>
-    </TopBar>
+    <div className="flex w-full items-center justify-between px-4 py-3">
+      {children}
+    </div>
   );
 }
 
