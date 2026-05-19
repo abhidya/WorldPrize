@@ -16,6 +16,8 @@
     "@worldprize/core": "workspace:*",
     "@worldprize/storage-memory": "workspace:*",
     "@worldprize/world-id": "workspace:*",
+    "@worldcoin/idkit": "^4.0.0",
+    "@worldcoin/idkit-core": "^4.0.0",
     "@worldcoin/minikit-js": "^2.0.3",
     "next": "^15.2.8",
     "react": "^19.0.3",

@@ -11,5 +11,5 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Missing scenario' }, { status: 400 });
   }
 
-  return Response.json(runSimulation(body.scenario));
+  return Response.json(await runSimulation(body.scenario));
 }

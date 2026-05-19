@@ -1,4 +1,4 @@
-import { buildWorldRpContext, getWorldConfig } from '@/lib/worldprize/world';
+import { createWorldRpContext } from '@/lib/worldprize/world';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,15 +11,12 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Missing action' }, { status: 400 });
   }
 
-  const rpContext = buildWorldRpContext(body.action);
-  const { rpId } = getWorldConfig();
+  const rpContext = createWorldRpContext(body.action);
 
   return Response.json({
     sig: rpContext.signature,
     nonce: rpContext.nonce,
     created_at: rpContext.created_at,
     expires_at: rpContext.expires_at,
-    rp_id: rpId,
   });
 }
-
