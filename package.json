@@ -3,8 +3,8 @@
   "private": true,
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "dev": "cd apps/demo && ./node_modules/.bin/next dev",
-    "build": "cd apps/demo && ./node_modules/.bin/next build",
+    "dev": "node scripts/dev-demo.mjs",
+    "build": "node scripts/build-demo.mjs",
     "test": "./node_modules/.bin/vitest run packages/core/test/promotion.test.ts",
     "lint": "cd apps/demo && ./node_modules/.bin/eslint ."
   },
