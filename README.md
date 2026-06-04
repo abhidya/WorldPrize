@@ -44,10 +44,26 @@ WorldPrize demonstrates how World ID can protect that free-entry path:
 
 ```bash
 pnpm install
+pnpm test
 pnpm dev
 ```
 
 Then open the demo app from `apps/demo`.
+
+## Interview demo path
+
+1. Keep `WORLDPRIZE_MODE=mock` and `NEXT_PUBLIC_WORLDPRIZE_MODE=mock`.
+2. Start the demo with `pnpm dev`.
+3. Enter `SNACK-123` once to show a valid product-code entry, then enter it
+   again to show `CODE_USED`.
+4. Use Alice's free-entry path once, then repeat it to show the daily
+   nullifier-style duplicate block.
+5. Open the public audit/admin views to show masked identifiers and inventory
+   accounting.
+
+Use `pnpm build` for the static/Vercel build check. Real World ID mode needs a
+server deployment, World Developer Portal configuration, persistent storage, and
+server-only `WORLD_SIGNING_KEY`; GitHub Pages remains mock-only.
 
 ## Environment
 
